@@ -33,7 +33,7 @@ run();
 async function sendRequest(url) {
     const response = await fetch(url);
 
-    if (!response.ok && response.status[0] >= "3") {
+    if (response.statusCode >= 300) {
         alert(`${response.status} ${response.statusText}`);
         throw new Error(`Request failed with status ${response.status}`);
     }
