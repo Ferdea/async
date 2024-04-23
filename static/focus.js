@@ -6,40 +6,39 @@ const API = {
 };
 
 async function run() {
-    await sendRequest(API.organizationList, async (orgOgrns) => {
+    try {
+        const orgOgrns = await sendRequest(API.organizationList);
         const ogrns = orgOgrns.join(",");
-        await sendRequest(`${API.orgReqs}?ogrn=${ogrns}`, async (requisites) => {
-            const orgsMap = reqsToMap(requisites);
-            await sendRequest(`${API.analytics}?ogrn=${ogrns}`, async (analytics) => {
-                addInOrgsMap(orgsMap, analytics, "analytics");
-                await sendRequest(`${API.buhForms}?ogrn=${ogrns}`, (buh) => {
-                    addInOrgsMap(orgsMap, buh, "buhForms");
-                    render(orgsMap, orgOgrns);
-                });
-            });
-        });
-    });
+
+        const promises = [
+            sendRequest(`${API.orgReqs}?ogrn=${ogrns}`),
+            sendRequest(`${API.analytics}?ogrn=${ogrns}`),
+            sendRequest(`${API.buhForms}?ogrn=${ogrns}`)
+        ];
+
+        const [requisites, analytics, buhForms] = await Promise.all(promises);
+
+        const orgsMap = reqsToMap(requisites);
+        addInOrgsMap(orgsMap, analytics, "analytics");
+        addInOrgsMap(orgsMap, buhForms, "buhForms");
+
+        render(orgsMap, orgOgrns);
+    } catch (error) {
+        console.error('An error occurred:', error.message);
+    }
 }
 
 run();
 
-function sendRequest(url, callback) {
-    return new Promise((resolve, reject) =>
-    {
-        const xhr = new XMLHttpRequest();
-        xhr.open("GET", url, true);
+async function sendRequest(url) {
+    const response = await fetch(url);
 
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    callback(JSON.parse(xhr.response));
-                }
-            }
-        }
-        xhr.onload = () => resolve(xhr.responseText);
-        xhr.onerror = () => reject(xhr.statusText);
-        xhr.send();
-    })
+    if (!response.ok && response.status[0] >= "3") {
+        alert(`${response.status} ${response.statusText}`);
+        throw new Error(`Request failed with status ${response.status}`);
+    }
+
+    return response.json();
 }
 
 function reqsToMap(requisites) {
